@@ -421,6 +421,19 @@ TiKV also records the request QPS from different resource groups in Grafana's **
 
 The resource control feature does not impact the regular usage of data import, export, and other replication tools. BR, TiDB Lightning, and TiCDC do not currently support processing DDL operations related to resource control, and their resource consumption is not limited by resource control.
 
+## TiFlash Resource Control
+### Principle
+The principle of TiFlash resource management is similar to TiDB/TiKV, and the overall idea is also flow control+priority scheduling:
+1. Flow control: With the help of the TiFlash Pipeline Execution Engine (/tiflash/tiflash pipeline model. md), it is possible to more accurately obtain the CPU consumption of different queries and choose whether to schedule a PipelineTask for a certain query based on resource consumption
+2. Priority scheduling: When the system resources are insufficient, the scheduling of PipelineTasks between multiple resource groups will be based on the priority. The priority setting considers three parts: user_priority, RU_PER_SEC and the real CPU usage of this query. For example, when user_priority of rg1 and rg2 are same, and the ratio of RU_PER_SEC is 1:2, then the CPU time that rg1 can use is twice that of rg2.
+
+Currently, TiFlash resource control only considers CPU usage and read bytes. 3 milliseconds of CPU usage time consumes 1 RU and 64KB of read_bytes consume 1 RU.
+
+###How to use
+When both of the following conditions are met, queries sent to TiFlash will be managed by the resource control system:
+1. `tidb_enable_resource_control` is enabled.
+2. `tidb_enable_tiflash_pipeline_model` is enabled. Because TiFlash resource control relies on the Pipeline Execution Engine to obtain accurate CPU usage of queries, so TiFlash resource control is implemented based on this.
+
 ## FAQ
 
 1. Do I have to disable resource control if I don't want to use resource groups?
